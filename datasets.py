@@ -61,7 +61,7 @@ def give_cars196_datasets(opt):
     all_image_dict = {}
     data = scipy.io.loadmat(os.path.join(opt.source_path, 'cars_annos.mat'))['annotations'][0]
     for entry in data:
-        data_set = entry[6][0][0]
+        # data_set = entry[6][0][0]
         im_path = os.path.join(opt.source_path, entry[0][0])
         class_id = entry[5][0][0]
         if class_id not in all_image_dict.keys():
@@ -80,40 +80,40 @@ def give_cars196_datasets(opt):
 
 
 def give_sop_datasets(opt):
-	train_image_dict, test_image_dict = {}, {}
-	train_data = open(os.path.join(opt.source_path, 'Ebay_train.txt'), 'r').read().splitlines()[1:]
-	test_data = open(os.path.join(opt.source_path, 'Ebay_test.txt'), 'r').read().splitlines()[1:]
-	for entry in train_data:
-		info = entry.split(' ')
-		class_id = info[1]
-		im_path = os.path.join(opt.source_path, info[3])
-		if class_id not in train_image_dict.keys():
-			train_image_dict[class_id] = []
-		train_image_dict[class_id].append(im_path)
-	for entry in test_data:
-		info = entry.split(' ')
-		class_id = info[1]
-		im_path = os.path.join(opt.source_path, info[3])
-		if class_id not in test_image_dict.keys():
-			test_image_dict[class_id] = []
-		test_image_dict[class_id].append(im_path)
+    train_image_dict, test_image_dict = {}, {}
+    train_data = open(os.path.join(opt.source_path, 'Ebay_train.txt'), 'r').read().splitlines()[1:]
+    test_data = open(os.path.join(opt.source_path, 'Ebay_test.txt'), 'r').read().splitlines()[1:]
+    for entry in train_data:
+        info = entry.split(' ')
+        class_id = info[1]
+        im_path = os.path.join(opt.source_path, info[3])
+        if class_id not in train_image_dict.keys():
+            train_image_dict[class_id] = []
+        train_image_dict[class_id].append(im_path)
+    for entry in test_data:
+        info = entry.split(' ')
+        class_id = info[1]
+        im_path = os.path.join(opt.source_path, info[3])
+        if class_id not in test_image_dict.keys():
+            test_image_dict[class_id] = []
+        test_image_dict[class_id].append(im_path)
 
-	new_train_dict = {}
-	class_ind_ind = 0
-	for cate in train_image_dict:
-		new_train_dict[class_ind_ind] = train_image_dict[cate]
-		class_ind_ind += 1
-	train_image_dict = new_train_dict
-	new_test_dict = {}
-	class_ind_ind = 0
-	for cate in test_image_dict:
-		new_test_dict[class_ind_ind] = test_image_dict[cate]
-		class_ind_ind += 1
-	test_image_dict = new_test_dict
-	train_dataset = TrainDatasetrsk(train_image_dict, opt)
-	val_dataset = BaseTripletDataset(test_image_dict,   opt, is_validation=True)
-	eval_dataset = BaseTripletDataset(train_image_dict,   opt, is_validation=True)
-	return {'training':train_dataset, 'testing':val_dataset, 'evaluation':eval_dataset}
+    new_train_dict = {}
+    class_ind_ind = 0
+    for cate in train_image_dict:
+        new_train_dict[class_ind_ind] = train_image_dict[cate]
+        class_ind_ind += 1
+    train_image_dict = new_train_dict
+    new_test_dict = {}
+    class_ind_ind = 0
+    for cate in test_image_dict:
+        new_test_dict[class_ind_ind] = test_image_dict[cate]
+        class_ind_ind += 1
+    test_image_dict = new_test_dict
+    train_dataset = TrainDatasetrsk(train_image_dict, opt)
+    val_dataset = BaseTripletDataset(test_image_dict, opt, is_validation=True)
+    eval_dataset = BaseTripletDataset(train_image_dict, opt, is_validation=True)
+    return {'training': train_dataset, 'testing': val_dataset, 'evaluation': eval_dataset}
 
 
 def give_inaturalist_datasets(opt):
@@ -276,7 +276,8 @@ class BaseTripletDataset(Dataset):
         return self.n_files
 
 
-flatten = lambda l: [item for sublist in l for item in sublist]
+def flatten(lst):
+    return [item for sublist in lst for item in sublist]
 
 
 class TrainDatasetrsk(Dataset):

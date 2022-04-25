@@ -25,12 +25,6 @@ If you make use of the code in this repository for scientific purposes, we appre
   <summary><b>iNaturalist</b></summary><br/>
 
 ```
-CUDA_VISIBLE_DEVICES='0' python main.py \
---dataset Inaturalist \
---source_path /users/r/ramzie/datasets
-```
-
-```
 CUDA_VISIBLE_DEVICES='2' python main.py \
 --dataset Inaturalist \
 --source_path /local/DEEPLEARNING/image_retrieval \
