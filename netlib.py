@@ -3,26 +3,28 @@ import torch.nn as nn
 import pretrainedmodels as ptm
 import torch.nn.functional as F
 import timm
-import pdb
+
 
 def initialize_weights(model):
-    for idx,module in enumerate(model.modules()):
+    for idx, module in enumerate(model.modules()):
         if isinstance(module, nn.Conv2d):
             nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
         elif isinstance(module, nn.BatchNorm2d):
             nn.init.constant_(module.weight, 1)
             nn.init.constant_(module.bias, 0)
         elif isinstance(module, nn.Linear):
-            module.weight.data.normal_(0,0.01)
+            module.weight.data.normal_(0, 0.01)
             module.bias.data.zero_()
+
 
 def rename_attr(model, attr, name):
     setattr(model, name, getattr(model, attr))
     delattr(model, attr)
 
+
 def networkselect(opt):
     if opt.arch == 'resnet50':
-        network =  ResNet50(opt)
+        network = ResNet50(opt)
     elif opt.arch == 'ViTB32':
         network = ViTB32(opt)
     elif opt.arch == 'ViTB16':
@@ -36,20 +38,22 @@ def networkselect(opt):
 
     return network
 
+
 class GeM(nn.Module):
     def __init__(self, p=3, eps=1e-6):
-        super(GeM,self).__init__()
+        super(GeM, self).__init__()
         self.p = nn.Parameter(torch.ones(1)*p)
         self.eps = eps
 
     def forward(self, x):
         return self.gem(x, p=self.p, eps=self.eps)
-        
+
     def gem(self, x, p=3, eps=1e-6):
         return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
-        
+
     def __repr__(self):
         return self.__class__.__name__ + '(' + 'p=' + '{:.4f}'.format(self.p.data.tolist()[0]) + ', ' + 'eps=' + str(self.eps) + ')'
+
 
 class ViTB16(nn.Module):
     def __init__(self, opt, list_style=False, no_norm=False):
@@ -77,6 +81,7 @@ class ViTB16(nn.Module):
         x = self.model.head(x)
         return torch.nn.functional.normalize(x, dim=-1)
 
+
 class ViTB32(nn.Module):
     def __init__(self, opt, list_style=False, no_norm=False):
         super(ViTB32, self).__init__()
@@ -103,6 +108,7 @@ class ViTB32(nn.Module):
         x = self.model.head(x)
         return torch.nn.functional.normalize(x, dim=-1)
 
+
 class ResNet50(nn.Module):
     def __init__(self, opt, list_style=False, no_norm=False):
         super(ResNet50, self).__init__()
@@ -126,9 +132,9 @@ class ResNet50(nn.Module):
         x = self.model.maxpool(self.model.relu(self.model.bn1(self.model.conv1(x))))
         for layerblock in self.layer_blocks:
             x = layerblock(x)
-        #x = self.model.avgpool(x)
+        # x = self.model.avgpool(x)
         x = self.gem(x)
-        x = x.view(x.size(0),-1)
+        x = x.view(x.size(0), -1)
         x = self.model.layer_norm(x)
         mod_x = self.model.last_linear(x)
         return torch.nn.functional.normalize(mod_x, dim=-1)

@@ -1,8 +1,13 @@
-import os, torch, argparse
+import os
+import argparse
+
+import torch
+
 import netlib as netlib
 import auxiliaries as aux
 import datasets as data
 import evaluate as eval
+
 
 if __name__ == '__main__':
 
@@ -17,7 +22,7 @@ if __name__ == '__main__':
                         help='Save folder name if any special information is to be included.')
     parser.add_argument('--kernels', default=8, type=int, help='Number of workers for pytorch dataloader.')
     parser.add_argument('--bs', default=112, type=int, help='Mini-Batchsize to use.')
-    parser.add_argument('--samples_per_class', default=4, type=int,help='Number of samples in one class drawn before choosing the next class. Set to >1 for losses other than ProxyNCA.')
+    parser.add_argument('--samples_per_class', default=4, type=int, help='Number of samples in one class drawn before choosing the next class. Set to >1 for losses other than ProxyNCA.')
     parser.add_argument('--loss', default='recallatk', type=str)
     parser.add_argument('--k_vals', nargs='+', default=[1, 2, 4, 8], type=int, help='Recall @ Values.')
     parser.add_argument('--embed_dim', default=512, type=int,

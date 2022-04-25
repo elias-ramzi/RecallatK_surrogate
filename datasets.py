@@ -1,60 +1,82 @@
+import os
+import copy
+import random
 import warnings
-warnings.filterwarnings("ignore")
-import numpy as np, pandas as pd, copy, torch, random, os
+
+import torch
+import numpy as np
+import pandas as pd
 from torch.utils.data import Dataset
 from PIL import Image
 from torchvision import transforms
 import scipy.io
+warnings.filterwarnings("ignore")
+
 
 def give_dataloaders(dataset, opt):
-    if opt.dataset=='vehicle_id':
+    if opt.dataset == 'vehicle_id':
         datasets = give_VehicleID_datasets(opt)
-    elif opt.dataset=='Inaturalist':
+    elif opt.dataset == 'Inaturalist':
         datasets = give_inaturalist_datasets(opt)
     elif opt.dataset == 'cars196':
         datasets = give_cars196_datasets(opt)
-    elif opt.dataset=='sop':
+    elif opt.dataset == 'sop':
         datasets = give_sop_datasets(opt)
     else:
         raise Exception('No Dataset >{}< available!'.format(dataset))
     dataloaders = {}
     for key, dataset in datasets.items():
         if isinstance(dataset, TrainDatasetrsk) and key == 'training':
-            dataloaders[key] = torch.utils.data.DataLoader(dataset, batch_size=opt.bs,
-                    num_workers=opt.kernels, sampler=torch.utils.data.SequentialSampler(dataset),
-                    pin_memory=True, drop_last=True)
+            dataloaders[key] = torch.utils.data.DataLoader(
+                dataset, batch_size=opt.bs,
+                num_workers=opt.kernels,
+                sampler=torch.utils.data.SequentialSampler(dataset),
+                pin_memory=True,
+                drop_last=True,
+            )
         else:
             is_val = dataset.is_validation
             if key == 'training':
-                dataloaders[key] = torch.utils.data.DataLoader(dataset, batch_size=opt.bs, 
-                        num_workers=opt.kernels, shuffle=not is_val, pin_memory=True, drop_last=not is_val)
-            else: 
-                dataloaders[key] = torch.utils.data.DataLoader(dataset, batch_size=opt.bs_base,
-                        num_workers=6, shuffle=not is_val, pin_memory=True, drop_last=not is_val)
+                dataloaders[key] = torch.utils.data.DataLoader(
+                    dataset, batch_size=opt.bs,
+                    num_workers=opt.kernels,
+                    shuffle=not is_val,
+                    pin_memory=True,
+                    drop_last=not is_val,
+                )
+            else:
+                dataloaders[key] = torch.utils.data.DataLoader(
+                    dataset, batch_size=opt.bs_base,
+                    num_workers=6,
+                    shuffle=not is_val,
+                    pin_memory=True,
+                    drop_last=not is_val,
+                )
     return dataloaders
 
 
 def give_cars196_datasets(opt):
-        train_image_dict, test_image_dict = {}, {}
-        all_image_dict = {}
-        data = scipy.io.loadmat(os.path.join(opt.source_path, 'cars_annos.mat'))['annotations'][0]
-        for entry in data:
-                data_set = entry[6][0][0]
-                im_path = os.path.join(opt.source_path, entry[0][0])
-                class_id = entry[5][0][0]
-                if class_id not in all_image_dict.keys():
-                        all_image_dict[class_id] = []
-                all_image_dict[class_id].append(im_path)
-        train_classes = list(all_image_dict.keys())[:98]
-        val_classes = list(all_image_dict.keys())[98:]
-        for given_class in train_classes:
-                train_image_dict[given_class] = all_image_dict[given_class]
-        for given_class in val_classes:
-                test_image_dict[given_class] = all_image_dict[given_class]
-        train_dataset = TrainDatasetrsk(train_image_dict, opt)
-        val_dataset = BaseTripletDataset(test_image_dict, opt, is_validation=True)
-        eval_dataset = BaseTripletDataset(train_image_dict, opt, is_validation=True)
-        return {'training':train_dataset, 'testing':val_dataset, 'evaluation':eval_dataset}
+    train_image_dict, test_image_dict = {}, {}
+    all_image_dict = {}
+    data = scipy.io.loadmat(os.path.join(opt.source_path, 'cars_annos.mat'))['annotations'][0]
+    for entry in data:
+        data_set = entry[6][0][0]
+        im_path = os.path.join(opt.source_path, entry[0][0])
+        class_id = entry[5][0][0]
+        if class_id not in all_image_dict.keys():
+            all_image_dict[class_id] = []
+        all_image_dict[class_id].append(im_path)
+    train_classes = list(all_image_dict.keys())[:98]
+    val_classes = list(all_image_dict.keys())[98:]
+    for given_class in train_classes:
+        train_image_dict[given_class] = all_image_dict[given_class]
+    for given_class in val_classes:
+        test_image_dict[given_class] = all_image_dict[given_class]
+    train_dataset = TrainDatasetrsk(train_image_dict, opt)
+    val_dataset = BaseTripletDataset(test_image_dict, opt, is_validation=True)
+    eval_dataset = BaseTripletDataset(train_image_dict, opt, is_validation=True)
+    return {'training': train_dataset, 'testing': val_dataset, 'evaluation': eval_dataset}
+
 
 def give_sop_datasets(opt):
 	train_image_dict, test_image_dict = {}, {}
@@ -276,7 +298,7 @@ class TrainDatasetrsk(Dataset):
         return img
 
     def reshuffle(self):
-        image_dict = copy.deepcopy(self.image_dict) 
+        image_dict = copy.deepcopy(self.image_dict)
         print('shuffling data')
         for sub in image_dict:
             random.shuffle(image_dict[sub])
@@ -289,7 +311,7 @@ class TrainDatasetrsk(Dataset):
             for sub_class in classes:
                 if (len(image_dict[sub_class]) >=self.samples_per_class) and (len(batch) < self.batch_size/self.samples_per_class):
                     batch.append(image_dict[sub_class][:self.samples_per_class])
-                    image_dict[sub_class] = image_dict[sub_class][self.samples_per_class:] 
+                    image_dict[sub_class] = image_dict[sub_class][self.samples_per_class:]
             if len(batch) == self.batch_size/self.samples_per_class:
                 total_batches.append(batch)
                 batch = []

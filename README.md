@@ -17,3 +17,17 @@ If you make use of the code in this repository for scientific purposes, we appre
   year={2022}
 }
 ```
+
+
+## Run the code
+
+<details>
+  <summary><b>iNaturalist</b></summary><br/>
+
+```
+CUDA_VISIBLE_DEVICES='0' python main.py \
+--dataset Inaturalist \
+--source_path /users/r/ramzie/datasets
+```
+
+</details>
