@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 import torch.multiprocessing
+from torch.cuda.amp import autocast
+from torch.utils.data import Subset, DataLoader
 from tensorboardX import SummaryWriter
 
 import auxiliaries as aux
@@ -28,6 +30,7 @@ parser.add_argument('--fc_lr_mul',   default=5,  type=float, help='OPTIONAL: Mul
 parser.add_argument('--n_epochs',    default=400, type=int,   help='Number of training epochs.')
 parser.add_argument('--kernels',     default=16,  type=int,   help='Number of workers for pytorch dataloader.')
 parser.add_argument('--bs', default=112, type=int,   help='Mini-Batchsize to use.')
+parser.add_argument('--loader_bs', default=128, type=int,   help='Mini-Batchsize to use for loader')
 parser.add_argument('--bs_base', default=200, type=int,   help='Mini-Batchsize to use for evaluation.')
 parser.add_argument('--samples_per_class', default=4,  type=int,   help='Number of samples in one class drawn before choosing the next class')
 parser.add_argument('--seed',  default=1,  type=int,   help='Random seed for reproducibility.')
@@ -48,6 +51,7 @@ parser.add_argument('--arch',   default='resnet50',  type=str,   help='Network b
 parser.add_argument('--grad_measure',    action='store_true', help='If added, gradients passed from embedding layer to the last conv-layer are stored in each iteration.')
 parser.add_argument('--dist_measure',    action='store_true', help='If added, the ratio between intra- and interclass distances is stored after each epoch.')
 parser.add_argument('--not_pretrained',  action='store_true', help='If added, the network will be trained WITHOUT ImageNet-pretrained weights.')
+parser.add_argument('--amp',  action='store_true', default=False, help='Use AMP')
 parser.add_argument('--gpu',    default=0,     type=int,   help='GPU-id for GPU to use.')
 parser.add_argument('--savename',     default='',    type=str,   help='Save folder name if any special information is to be included.')
 parser.add_argument('--source_path',  default='',   type=str, help='Path to data')
@@ -221,33 +225,40 @@ def same_model(model1, model2):
 def train_one_epoch(train_dataloader, model, optimizer, criterion, opt, epoch):
     loss_collect = []
     start = time.time()
-    data_iterator = tqdm(train_dataloader, desc='Epoch {} Training...'.format(epoch))
+    data_iterator = tqdm(train_dataloader.batch_sampler, desc='Epoch {} Training...'.format(epoch), position=0)
     optimizer.zero_grad()
-    for i, (class_labels, input) in enumerate(data_iterator):
-        output = torch.zeros((len(input), opt.embed_dim)).to(opt.device)
-        for j in range(0, len(input), opt.bs_base):
-            input_x = input[j:j+opt.bs_base, :].to(opt.device)
-            x = model(input_x)
-            output[j:j+opt.bs_base, :] = copy.copy(x)
+    for i, batch_idx in enumerate(data_iterator):
+        subset = Subset(train_dataloader.dataset, batch_idx)
+        subset_loader = DataLoader(subset, batch_size=opt.loader_bs, num_workers=opt.kernels, pin_memory=True, shuffle=False)
+        output = torch.zeros((len(subset), opt.embed_dim)).to(opt.device)
+        for j, (_, batch) in enumerate(tqdm(subset_loader, desc='First forward...', position=1, leave=False)):
+            with torch.no_grad():
+                with autocast(enabled=False):
+                    x = model(batch.to(opt.device))
+            output[j*opt.loader_bs:(j+1)*opt.loader_bs, :] = copy.copy(x)
             del x
             torch.cuda.empty_cache()
         num_samples = output.shape[0]
+        output.requires_grad_(True)
         output.retain_grad()
         loss = 0.
 
-        for q in range(0, num_samples):
-            loss += criterion(output, q)
-        loss_collect.append(loss.item())
-        loss.backward()
+        with autocast(enabled=False):
+            for q in tqdm(range(0, num_samples), desc='Computing loss', position=1, leave=False):
+                loss += criterion(output, q)
+            loss_collect.append(loss.item())
+            loss.backward()
         output_grad = copy.copy(output.grad)
         del loss
         del output
         torch.cuda.empty_cache()
 
-        for j in range(0, len(input), opt.bs_base):
-            input_x = input[j:j+opt.bs_base, :].to(opt.device)
-            x = model(input_x)
-            x.backward(output_grad[j:j+opt.bs_base, :])
+        # for j in range(0, len(input), opt.bs_base):
+        for j, (_, batch) in enumerate(tqdm(subset_loader, desc='Second forward...', position=1, leave=False)):
+            with autocast(enabled=False):
+                x = model(batch.to(opt.device))
+                x.backward(output_grad[j*opt.loader_bs:(j+1)*opt.loader_bs, :])
+
         optimizer.step()
         optimizer.zero_grad()
         if opt.grad_measure:

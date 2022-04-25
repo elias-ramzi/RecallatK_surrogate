@@ -30,4 +30,11 @@ CUDA_VISIBLE_DEVICES='0' python main.py \
 --source_path /users/r/ramzie/datasets
 ```
 
+```
+CUDA_VISIBLE_DEVICES='2' python main.py \
+--dataset Inaturalist \
+--source_path /local/DEEPLEARNING/image_retrieval \
+--amp
+```
+
 </details>
