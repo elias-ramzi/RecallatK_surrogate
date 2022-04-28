@@ -124,7 +124,7 @@ def evaluate_one_dataset(LOG, dataloader, model, opt, save=True, give_return=Tru
         if LOG is not None:
             if save:
                 if not len(LOG.progress_saver['val']['Recall @ 1']) or recall_at_ks[0] > np.max(LOG.progress_saver['val']['Recall @ 1']):
-                    aux.set_checkpoint(model, opt, LOG.progress_saver, LOG.prop.save_path+'/checkpoint.pth.tar')
+                    aux.set_checkpoint(model, opt, LOG.progress_saver, LOG.prop.save_path+f'/checkpoint_{epoch}.pth.tar')
                     aux.recover_closest_one_dataset(feature_matrix_all, image_paths, LOG.prop.save_path+'/sample_recoveries.png')
             LOG.log('val', LOG.metrics_to_log['val'], [epoch, np.round(time.time()-start), NMI, F1]+recall_at_ks)
     print(result_str)

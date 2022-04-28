@@ -295,12 +295,8 @@ for epoch in range(opt.n_epochs):
         eval_params = {'dataloader': dataloaders['testing'], 'model': model, 'opt': opt, 'epoch': epoch}
     elif opt.dataset == 'vehicle_id':
         eval_params = {'dataloaders': [dataloaders['testing_set1'], dataloaders['testing_set2'], dataloaders['testing_set3']], 'model': model, 'opt': opt, 'epoch': epoch}
-    if opt.infrequent_eval == 1:
-        epoch_freq = 5
-    else:
-        epoch_freq = 1
     if not opt.dataset == 'vehicle_id':
-        if epoch % epoch_freq == 0 or epoch == opt.n_epochs - 1:
+        if (epoch+1) % opt.infrequent_eval == 0 or epoch == opt.n_epochs - 1:
             results = eval.evaluate(opt.dataset, LOG, save=True, **eval_params)
             writer.add_scalar('global/recall1', results[0][0], epoch+1)
             writer.add_scalar('global/recall2', results[0][1], epoch+1)
@@ -310,7 +306,7 @@ for epoch in range(opt.n_epochs):
             writer.add_scalar('global/F1', results[2], epoch+1)
 
     else:
-        if epoch % epoch_freq == 0 or epoch == opt.n_epochs - 1:
+        if (epoch+1) % opt.infrequent_eval == 0 or epoch == opt.n_epochs - 1:
             results = eval.evaluate(opt.dataset, LOG, save=True, **eval_params)
             writer.add_scalar('global/recall1', results[2], epoch+1)
             writer.add_scalar('global/recall2', results[3], epoch+1)  # writer.add_scalar('global/recall3',results[0][2],0)
